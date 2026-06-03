@@ -50,7 +50,7 @@ maple_training:
   prompt_depth: 9
   epochs: 6
   batch_size: 8
-  num_workers: 0
+  num_workers: 4
   learning_rate: 0.0025
   weight_decay: 0.0005
   momentum: 0.9
