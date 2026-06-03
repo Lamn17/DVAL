@@ -1,6 +1,6 @@
 dataset_yaml: "GTSDB/data_local.yaml"
 epochs: 50
-batch_size: 8
+batch_size: 16
 val_batch_size: 8
 imgsz: 1024
 device: ['0']
@@ -38,7 +38,7 @@ strategy_args:
     inverse_confidence_weight: 0.0
     yolo_confidence_weight: 0.0
     padding: 0.15
-    batch_size: 4
+    batch_size: 8
     maple_device: "cuda:0"
 
 maple_training:
@@ -49,7 +49,7 @@ maple_training:
   ctx_init: ""
   prompt_depth: 9
   epochs: 6
-  batch_size: 4
+  batch_size: 8
   num_workers: 0
   learning_rate: 0.0025
   weight_decay: 0.0005
