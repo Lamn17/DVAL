@@ -2,7 +2,7 @@ dataset_yaml: "VTSDB100/data.yaml"
 epochs: 20
 batch_size: 48
 val_batch_size: 8
-workers: 2
+workers: 4
 imgsz: 640
 device: ['0']
 inference_device: 0
