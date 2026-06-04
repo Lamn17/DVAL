@@ -18,5 +18,5 @@ strategy: "entropy"
 model_name: "yolo11n.pt"
 initial_labeled_count: 15499 # 20% of 77499 train images, rounded down
 max_rounds: 8
-samples_per_round: 7750 # remaining 80% over 8 rounds
+samples_per_round: 3875 # remaining 80% over 8 rounds
 num_inference: -1
