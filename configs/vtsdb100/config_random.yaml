@@ -1,0 +1,22 @@
+dataset_yaml: "VTSDB100/data.yaml"
+epochs: 100
+batch_size: 4
+val_batch_size: 4
+imgsz: 640
+device: ['0']
+workers: 0
+train_ddp: False
+master_addr: "localhost"
+master_port: 12355
+backend: "nccl"
+patience: 30
+experiments_root: "full_experiments/vtsdb100_random"
+proctitle_midstr: "vtsdb100_random"
+proctitle_endstr_of: "seed"
+seed: 1
+strategy: "random"
+model_name: "yolo11n.pt"
+initial_labeled_count: 15499 # 20% of 77499 train images, rounded down
+max_rounds: 8
+samples_per_round: 7750 # remaining 80% over 8 rounds
+num_inference: -1
