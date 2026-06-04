@@ -4,7 +4,6 @@ batch_size: 16
 val_batch_size: 8
 imgsz: 640
 device: ['0']
-workers: 0
 train_ddp: False
 master_addr: "localhost"
 master_port: 12355
