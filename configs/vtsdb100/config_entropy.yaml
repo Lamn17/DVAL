@@ -1,10 +1,10 @@
 dataset_yaml: "VTSDB100/data.yaml"
-epochs: 100
-batch_size: 4
-val_batch_size: 4
+epochs: 20
+batch_size: 48
+val_batch_size: 8
 imgsz: 640
 device: ['0']
-workers: 0
+workers: 4
 train_ddp: False
 master_addr: "localhost"
 master_port: 12355
