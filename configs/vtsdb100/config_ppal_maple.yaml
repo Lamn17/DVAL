@@ -1,7 +1,8 @@
 dataset_yaml: "VTSDB100/data.yaml"
 epochs: 50
-batch_size: 16
+batch_size: 32
 val_batch_size: 8
+workers: 4
 imgsz: 640
 device: ['0']
 train_ddp: False
