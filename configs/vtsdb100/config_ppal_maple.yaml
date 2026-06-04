@@ -5,6 +5,8 @@ val_batch_size: 8
 workers: 4
 imgsz: 640
 device: ['0']
+inference_device: 0
+inference_batch_size: 32
 train_ddp: False
 master_addr: "localhost"
 master_port: 12355

@@ -63,6 +63,8 @@ class MaPLeUncertaintyStrategy(BaseStrategy):
         self.keep_checkpoint_tokens = keep_checkpoint_tokens
         self.experiment_dir = experiment_dir
         self.round = round
+        self.inference_device = kwargs.get("inference_device", device)
+        self.inference_batch_size = kwargs.get("inference_batch_size", 1)
         self.class_names = self._load_class_names(data_yaml)
         self.transform = transforms.Compose(
             [
@@ -93,6 +95,8 @@ class MaPLeUncertaintyStrategy(BaseStrategy):
             return_classes=True,
             return_probs=True,
             num_inference=-1,
+            inference_device=self.inference_device,
+            inference_batch_size=self.inference_batch_size,
             **local_kwargs,
         )
 

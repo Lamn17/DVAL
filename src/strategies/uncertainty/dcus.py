@@ -81,12 +81,16 @@ class DCUSStrategy(BaseStrategy):
         print(f"Computing DCUS uncertainty scores for {len(unlabeled_image_paths)} images...")
         
         start_time = time.time()
+        inference_device = self.strategy_params.get("inference_device", self.strategy_params.get("device", "auto"))
+        inference_batch_size = self.strategy_params.get("inference_batch_size", 1)
         results = self.model.inference(
             unlabeled_image_paths,
             return_boxes=True,
             return_probs=True,
             return_classes=True,
             num_inference=num_inf,
+            inference_device=inference_device,
+            inference_batch_size=inference_batch_size,
             **local_kwargs
         )
         

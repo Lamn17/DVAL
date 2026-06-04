@@ -535,6 +535,13 @@ class YOLOModel(BaseModel):
             feature_layers = kwargs.pop('feature_layers')
             if isinstance(feature_layers, list):
                 self.set_feature_layers(feature_layers)
+
+        inference_batch_size = int(kwargs.pop("inference_batch_size", 1) or 1)
+        inference_device = kwargs.pop("inference_device", kwargs.get("device", None))
+        if isinstance(inference_device, list):
+            inference_device = ",".join(str(d) for d in inference_device)
+        if inference_device is not None and str(inference_device) != "auto":
+            kwargs["device"] = inference_device
         
         inference_results = []
         num_inf = num_inference if num_inference > 0 else len(image_paths)
@@ -544,7 +551,55 @@ class YOLOModel(BaseModel):
             if not hooks_registered:
                 return_features = False
             
+        def convert_result(result) -> InferenceResult:
+            boxes = None
+            if return_boxes and result.boxes is not None:
+                boxes = result.boxes.xyxy.cpu().numpy()
+
+            classes = None
+            if return_classes and result.boxes is not None:
+                classes = result.boxes.cls.cpu().numpy().astype(int)
+
+            probs = None
+            if return_probs and result.boxes is not None:
+                probs = result.boxes.conf.cpu().numpy()
+
+            features = None
+            if return_features:
+                if hasattr(result, 'orig_shape'):
+                    features = self._extract_features_from_feature_maps(result.orig_shape)
+                else:
+                    features = self._extract_features_from_feature_maps((640, 640))
+
+            return InferenceResult(
+                boxes=boxes,
+                classes=classes,
+                logits=None,
+                probs=probs,
+                features=features,
+                embeddings=features
+            )
+
         try:
+            use_batched_predict = inference_batch_size > 1 and not return_features and not return_gradients
+            if use_batched_predict:
+                for start in range(0, len(image_paths), inference_batch_size):
+                    batch_paths = image_paths[start:start + inference_batch_size]
+                    results = self.model(
+                        batch_paths,
+                        conf=conf,
+                        iou=iou,
+                        batch=inference_batch_size,
+                        verbose=False,
+                        **kwargs
+                    )
+                    for image_path, result in zip(batch_paths, results):
+                        if result is None:
+                            print(f"Warning: No result for image {image_path}")
+                            continue
+                        inference_results.append(convert_result(result))
+                return inference_results
+
             for i, image_path in enumerate(image_paths):
                 self._feature_maps = {}
                 
@@ -559,40 +614,13 @@ class YOLOModel(BaseModel):
                     print(f"Warning: No result for image {image_path}")
                     continue
                 
-                boxes = None
-                if return_boxes and result.boxes is not None:
-                    boxes = result.boxes.xyxy.cpu().numpy()
-                    
-                classes = None
-                if return_classes and result.boxes is not None:
-                    classes = result.boxes.cls.cpu().numpy().astype(int)
-                    
-                probs = None
-                if return_probs and result.boxes is not None:
-                    probs = result.boxes.conf.cpu().numpy()
-                    
-                logits = None
-                features = None
                 layer_gradients = None
                 embedding_gradients = None
                 
                 if return_logits:
                     pass
-                    
-                if return_features:
-                    if hasattr(result, 'orig_shape'):
-                        features = self._extract_features_from_feature_maps(result.orig_shape)
-                    else:
-                        features = self._extract_features_from_feature_maps((640, 640))
-                
-                inference_result = InferenceResult(
-                    boxes=boxes,
-                    classes=classes,
-                    logits=logits,
-                    probs=probs,
-                    features=features,
-                    embeddings=features
-                )
+
+                inference_result = convert_result(result)
                 
                 if return_gradients:
                     if gradient_type == "layer":
