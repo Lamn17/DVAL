@@ -18,8 +18,8 @@ strategy: ["dcus", "ccms"]
 expand_ratios: [4.0]
 model_name: "yolo11n.pt"
 initial_labeled_count: 144 # 20% of 720 train images
-max_rounds: 8
-samples_per_round: 72 # 10% of 720 train images
+max_rounds: 6
+samples_per_round: 36 # 10% of 720 train images
 num_inference: -1
 
 strategy_args:
