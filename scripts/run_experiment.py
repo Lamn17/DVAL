@@ -40,6 +40,8 @@ def parse_args():
     parser.add_argument('--max_rounds', type=int, help='Override max_rounds')
     parser.add_argument('--samples_per_round', type=int, help='Override samples_per_round')
     parser.add_argument('--num_inference', type=str, help='Num images to run inference, -1 for full dataset, or path to folder')
+    parser.add_argument('--resume_experiment_dir', type=str, help='Resume an existing experiment directory instead of creating a new one')
+    parser.add_argument('--start_round', type=int, help='Round to resume from; defaults to the first incomplete round')
     parser.add_argument('--override', action='append', help='Override nested config keys, e.g., --override strategy_args.fdal.supporter_embedding_size=512')
 
     return parser.parse_args()
@@ -196,6 +198,7 @@ def run_data_setup(config: Dict) -> str:
 def run_training(config: Dict, experiment_dir: str, round_num: int = 0) -> Dict:
     dataset_yaml_path = Path(experiment_dir) / f"round_{round_num}" / "data.yaml"
     model_path_file = Path(experiment_dir) / f"round_{round_num}" / "model_path.txt"
+    metrics = {}
     
     model_name = config.get('model_name', 'yolo11n.pt')
     model_run_name = model_name.split('/')[-1].replace('.pt', '').replace('.yaml', '')
@@ -257,6 +260,101 @@ def run_training(config: Dict, experiment_dir: str, round_num: int = 0) -> Dict:
             'val/dfl_loss': float(last_row['val/dfl_loss']),
         }
     return metrics
+
+
+def model_run_name(config: Dict) -> str:
+    model_name = config.get('model_name', 'yolo11n.pt')
+    return model_name.split('/')[-1].replace('.pt', '').replace('.yaml', '')
+
+
+def round_model_path(config: Dict, experiment_dir: str, round_num: int) -> Path:
+    model_path_file = Path(experiment_dir) / f"round_{round_num}" / "model_path.txt"
+    if model_path_file.exists():
+        model_path = Path(model_path_file.read_text().strip())
+        if model_path.exists():
+            return model_path
+
+    run_name = model_run_name(config)
+    weights_dir = Path(experiment_dir) / f"round_{round_num}" / "train" / run_name / "weights"
+    best_path = weights_dir / "best.pt"
+    last_path = weights_dir / "last.pt"
+    if best_path.exists():
+        return best_path
+    return last_path
+
+
+def round_has_trained_model(config: Dict, experiment_dir: str, round_num: int) -> bool:
+    return round_model_path(config, experiment_dir, round_num).exists()
+
+
+def read_round_metrics(config: Dict, experiment_dir: str, round_num: int) -> Dict:
+    model_path = round_model_path(config, experiment_dir, round_num)
+    if model_path.exists():
+        metrics_file = model_path.parent.parent / "results.csv"
+    else:
+        metrics_file = Path(experiment_dir) / f"round_{round_num}" / "train" / model_run_name(config) / "results.csv"
+
+    if not metrics_file.exists():
+        return {}
+
+    df = pandas.read_csv(metrics_file)
+    if df.empty:
+        return {}
+
+    last_row = df.iloc[-1]
+    return {
+        'train/box_loss': float(last_row['train/box_loss']),
+        'train/cls_loss': float(last_row['train/cls_loss']),
+        'train/dfl_loss': float(last_row['train/dfl_loss']),
+        'metrics/precision': float(last_row['metrics/precision(B)']),
+        'metrics/recall': float(last_row['metrics/recall(B)']),
+        'map50': float(last_row['metrics/mAP50(B)']),
+        'map50-95': float(last_row['metrics/mAP50-95(B)']),
+        'val/box_loss': float(last_row['val/box_loss']),
+        'val/cls_loss': float(last_row['val/cls_loss']),
+        'val/dfl_loss': float(last_row['val/dfl_loss']),
+    }
+
+
+def append_round_result(results: Dict, round_num: int, metrics: Dict):
+    if round_num in results['rounds']:
+        idx = results['rounds'].index(round_num)
+        results['metrics_history'][idx] = metrics
+        return
+    results['rounds'].append(round_num)
+    results['metrics_history'].append(metrics)
+
+
+def collect_existing_results(config: Dict, experiment_dir: str, max_rounds: int) -> Dict:
+    results = {'rounds': [], 'metrics_history': []}
+    for round_num in range(0, max_rounds + 1):
+        if round_has_trained_model(config, experiment_dir, round_num):
+            append_round_result(results, round_num, read_round_metrics(config, experiment_dir, round_num))
+    return results
+
+
+def infer_resume_start_round(config: Dict, experiment_dir: str, max_rounds: int, is_yoloe: bool) -> int:
+    if not is_yoloe and not round_has_trained_model(config, experiment_dir, 0):
+        return 0
+
+    first_al_round = 1
+    for round_num in range(first_al_round, max_rounds + 1):
+        if not round_has_trained_model(config, experiment_dir, round_num):
+            return round_num
+    return max_rounds + 1
+
+
+def write_results_file(experiment_dir: str, results: Dict):
+    ordered = sorted(zip(results['rounds'], results['metrics_history']), key=lambda x: x[0])
+    results['rounds'] = [r for r, _ in ordered]
+    results['metrics_history'] = [m for _, m in ordered]
+
+    results_file = Path(experiment_dir) / "results.csv"
+    with open(results_file, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=results.keys())
+        writer.writeheader()
+        for i in range(len(results['rounds'])):
+            writer.writerow({k: v[i] for k, v in results.items() if i < len(v)})
 
 
 def should_train_maple(config: Dict) -> bool:
@@ -344,7 +442,17 @@ def run_maple_training(config: Dict, experiment_dir: str, round_num: int) -> str
     logger.info(f"MaPLe crop log: {crop_log}")
     logger.info(f"MaPLe train log: {train_log}")
     with train_log.open("w") as f:
-        subprocess.run(train_args, check=True, stdout=f, stderr=subprocess.STDOUT)
+        try:
+            subprocess.run(train_args, check=True, stdout=f, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as exc:
+            tail = ""
+            if train_log.exists():
+                lines = train_log.read_text(errors="replace").splitlines()
+                tail = "\n".join(lines[-80:])
+            raise RuntimeError(
+                f"MaPLe training failed for round {round_num}. "
+                f"See log: {train_log}\nLast log lines:\n{tail}"
+            ) from exc
     return str(checkpoint_path)
 
 def run_strategy(config: Dict, experiment_dir: str, round_num: int):
@@ -511,52 +619,85 @@ def main():
         logger.error('max_rounds must be > 0')
         return 1
     
-    try:
-        experiment_dir = run_data_setup(config)
-        logger.info(f"Initialized experiment in: {experiment_dir}")
-        logger.info(f"Initial selection log: {Path(experiment_dir) / 'selection_log.txt'}")
-    except Exception as e:
-        logger.exception(f"Failed to initialize experiment: {e}")
-        return 1
-    
     max_rounds = config.get('max_rounds', 1)
-    results = {'rounds': [], 'metrics_history': []}
     model_name = config.get('model_name', 'yolo11n.pt')
     is_yoloe = 'yoloe' in model_name.lower()
-    
-    if not is_yoloe:
+
+    if args.resume_experiment_dir:
+        experiment_dir = str(Path(args.resume_experiment_dir))
+        if not Path(experiment_dir).exists():
+            logger.error(f"Resume experiment directory does not exist: {experiment_dir}")
+            return 1
+        results = collect_existing_results(config, experiment_dir, max_rounds)
+        start_round = args.start_round if args.start_round is not None else infer_resume_start_round(config, experiment_dir, max_rounds, is_yoloe)
+        logger.info(f"Resuming experiment in: {experiment_dir}")
+        logger.info(f"Existing completed rounds: {results['rounds']}")
+        logger.info(f"Starting from round: {start_round}")
+    else:
+        try:
+            experiment_dir = run_data_setup(config)
+            logger.info(f"Initialized experiment in: {experiment_dir}")
+            logger.info(f"Initial selection log: {Path(experiment_dir) / 'selection_log.txt'}")
+        except Exception as e:
+            logger.exception(f"Failed to initialize experiment: {e}")
+            return 1
+        results = {'rounds': [], 'metrics_history': []}
+        start_round = 0 if not is_yoloe else 1
+
+    if start_round > max_rounds:
+        logger.info(f"No work to do: start_round={start_round} is greater than max_rounds={max_rounds}")
+        logger.info(f"Results saved in: {experiment_dir}")
+        write_results_file(experiment_dir, results)
+        return 0
+
+    if not is_yoloe and start_round <= 0:
         logger.info("=== Initial Training (Round 0) ===")
         try:
             start_time = time.time()
             metrics = run_training(config, experiment_dir, 0)
-            results['rounds'].append(0)
-            results['metrics_history'].append(metrics)
+            append_round_result(results, 0, metrics)
             if should_train_maple(config):
                 logger.info("Training MaPLe for round 0...")
                 maple_checkpoint = run_maple_training(config, experiment_dir, 0)
                 logger.info(f"MaPLe round 0 checkpoint: {maple_checkpoint}")
             end_time = time.time()
             logger.info(f"Initial training completed in {end_time - start_time:.2f} seconds")
+            start_round = 1
         except Exception as e:
             logger.exception(f"Initial training failed: {e}")
             return 1
     else:
-        logger.info("=== YOLOE Model: Skipping initial training ===")
-    
-    for round_num in range(1, max_rounds + 1):
+        if is_yoloe:
+            logger.info("=== YOLOE Model: Skipping initial training ===")
+        elif start_round > 1 and not round_has_trained_model(config, experiment_dir, start_round - 1):
+            logger.error(f"Cannot start round {start_round}: previous round model is missing")
+            return 1
+
+    for round_num in range(max(1, start_round), max_rounds + 1):
         try:
             logger.info(f"=== Round {round_num} ===")
-            start_time = time.time()
-            selected_indices = run_strategy(config, experiment_dir, round_num)
-            
-            if len(selected_indices) == 0:
-                logger.info("No more samples to select. Stopping experiment.")
-                break
-            
-            logger.info(f"Selected {len(selected_indices)} samples for labeling")
-            end_time = time.time()
-            logger.info(f"Strategy completed in {end_time - start_time:.2f} seconds")
-            simulate_labeling_cli(selected_indices, config, experiment_dir, round_num)
+
+            if round_has_trained_model(config, experiment_dir, round_num):
+                metrics = read_round_metrics(config, experiment_dir, round_num)
+                append_round_result(results, round_num, metrics)
+                logger.info(f"Round {round_num} already has a trained model; skipping")
+                continue
+
+            round_dir = Path(experiment_dir) / f"round_{round_num}"
+            if (round_dir / "metadata.yaml").exists() and (round_dir / "selected_indices.npy").exists():
+                logger.info(f"Round {round_num} already has selected/labeled data; reusing it")
+            else:
+                start_time = time.time()
+                selected_indices = run_strategy(config, experiment_dir, round_num)
+
+                if len(selected_indices) == 0:
+                    logger.info("No more samples to select. Stopping experiment.")
+                    break
+
+                logger.info(f"Selected {len(selected_indices)} samples for labeling")
+                end_time = time.time()
+                logger.info(f"Strategy completed in {end_time - start_time:.2f} seconds")
+                simulate_labeling_cli(selected_indices, config, experiment_dir, round_num)
 
             start_time = time.time()
             logger.info(f"Training model for round {round_num}...")
@@ -566,15 +707,8 @@ def main():
                 maple_checkpoint = run_maple_training(config, experiment_dir, round_num)
                 logger.info(f"MaPLe round {round_num} checkpoint: {maple_checkpoint}")
             
-            results['rounds'].append(round_num)
-            results['metrics_history'].append(metrics)
-
-            results_file = Path(experiment_dir) / "results.csv"
-            with open(results_file, 'w') as f:
-                writer = csv.DictWriter(f, fieldnames=results.keys())
-                writer.writeheader()
-                for i in range(len(results['rounds'])):
-                    writer.writerow({k: v[i] for k, v in results.items() if i < len(v)})
+            append_round_result(results, round_num, metrics)
+            write_results_file(experiment_dir, results)
 
             end_time = time.time()
             logger.info(f"Training completed in {end_time - start_time:.2f} seconds")
@@ -591,6 +725,7 @@ def main():
     logger.info("=== Experiment Complete ===")
     logger.info(f"Completed {len(results['rounds'])} rounds")
     logger.info(f"Results saved in: {experiment_dir}")
+    write_results_file(experiment_dir, results)
     
     if results['metrics_history']:
         if not is_yoloe and len(results['metrics_history']) > 1:

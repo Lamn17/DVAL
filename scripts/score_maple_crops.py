@@ -1,6 +1,7 @@
 import argparse
 import csv
 import math
+import os
 import re
 from pathlib import Path
 from typing import List
@@ -46,9 +47,43 @@ def clean_classname(name: str) -> str:
     return name.replace("_", " ")
 
 
+def find_local_clip_model(url: str) -> Path | None:
+    filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
+    repo_root = Path(__file__).resolve().parents[1]
+    search_dirs = [
+        os.environ.get("CLIP_MODEL_DIR"),
+        Path.cwd() / "models",
+        repo_root / "models",
+    ]
+
+    for root in search_dirs:
+        if not root:
+            continue
+        candidate = Path(root) / filename
+        if candidate.exists():
+            return candidate
+
+    kaggle_input = Path("/kaggle/input")
+    if kaggle_input.exists():
+        matches = sorted(kaggle_input.rglob(filename))
+        if matches:
+            return matches[0]
+    return None
+
+
 def load_clip_to_cpu(backbone_name: str):
     url = clip._MODELS[backbone_name]
-    model_path = clip._download(url, root="./models")
+    model_path = find_local_clip_model(url)
+    if model_path is None:
+        try:
+            model_path = Path(clip._download(url, root=str(Path(__file__).resolve().parents[1] / "models")))
+        except Exception as exc:
+            filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
+            raise RuntimeError(
+                f"CLIP backbone {backbone_name!r} was not found locally as {filename}. "
+                "Add it to FDAL-main/models, set CLIP_MODEL_DIR, or attach a Kaggle "
+                "dataset containing the file."
+            ) from exc
     try:
         model = torch.jit.load(model_path, map_location="cpu").eval()
         state_dict = None
