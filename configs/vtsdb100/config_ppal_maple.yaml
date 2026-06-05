@@ -40,7 +40,7 @@ strategy_args:
     inverse_confidence_weight: 0.0
     yolo_confidence_weight: 0.0
     padding: 0.15
-    batch_size: 8
+    batch_size: 16
     maple_device: "cuda:0"
 
 maple_training:
@@ -50,8 +50,8 @@ maple_training:
   n_ctx: 2
   ctx_init: ""
   prompt_depth: 9
-  epochs: 10
-  batch_size: 8
+  epochs: 5
+  batch_size: 16
   num_workers: 4
   learning_rate: 0.0025
   weight_decay: 0.0005
