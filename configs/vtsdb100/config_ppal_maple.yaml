@@ -50,9 +50,10 @@ maple_training:
   n_ctx: 2
   ctx_init: ""
   prompt_depth: 9
-  epochs: 5
+  epochs: 3
   batch_size: 32
   num_workers: 4
+  val_interval: 0
   learning_rate: 0.0025
   weight_decay: 0.0005
   momentum: 0.9

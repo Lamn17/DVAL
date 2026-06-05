@@ -33,6 +33,12 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--num_workers", type=int, default=0)
+    parser.add_argument(
+        "--val_interval",
+        type=int,
+        default=1,
+        help="Validate every N epochs; 0 validates only the final epoch.",
+    )
     parser.add_argument("--learning_rate", type=float, default=0.0025)
     parser.add_argument("--weight_decay", type=float, default=0.0005)
     parser.add_argument("--momentum", type=float, default=0.9)
@@ -85,6 +91,15 @@ def write_metrics(metrics_path: Path, rows):
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def should_validate_epoch(epoch: int, epochs: int, val_interval: int) -> bool:
+    epoch_num = epoch + 1
+    if epoch_num == epochs:
+        return True
+    if val_interval <= 0:
+        return False
+    return epoch_num % val_interval == 0
 
 
 def main():
@@ -169,7 +184,11 @@ def main():
             "accuracy": 100.0 * correct / max(1, total),
             "num_samples": total,
         }
-        val_metrics = evaluate(model, val_data[1], device) if val_data is not None else None
+        should_validate = (
+            val_data is not None
+            and should_validate_epoch(epoch, args.epochs, args.val_interval)
+        )
+        val_metrics = evaluate(model, val_data[1], device) if should_validate else None
         score = val_metrics["accuracy"] if val_metrics is not None else train_metrics["accuracy"]
 
         row = {
@@ -189,7 +208,8 @@ def main():
         )
         write_metrics(metrics_path, rows)
 
-        if score >= best_score:
+        can_select_checkpoint = val_data is None or val_metrics is not None
+        if can_select_checkpoint and score >= best_score:
             best_score = score
             checkpoint = {
                 "round": args.round,

@@ -329,6 +329,8 @@ def run_maple_training(config: Dict, experiment_dir: str, round_num: int) -> str
         str(maple_cfg.get("batch_size", 32)),
         "--num_workers",
         str(maple_cfg.get("num_workers", 0)),
+        "--val_interval",
+        str(maple_cfg.get("val_interval", 1)),
         "--learning_rate",
         str(maple_cfg.get("learning_rate", 0.0025)),
         "--weight_decay",
