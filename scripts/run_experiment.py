@@ -230,6 +230,12 @@ def run_training(config: Dict, experiment_dir: str, round_num: int = 0) -> Dict:
         train_args.extend(['--patience', str(config.get('patience'))])
     if config.get('workers') is not None:
         train_args.extend(['--workers', str(config.get('workers'))])
+    cldcus_cfg = config.get('strategy_args', {}).get('cldcus', {})
+    train_args.extend([
+        '--quality_momentum', str(cldcus_cfg.get('momentum', 0.99)),
+        '--quality_initial_value', str(cldcus_cfg.get('initial_quality', 0.5)),
+        '--quality_xi', str(cldcus_cfg.get('xi', 0.6)),
+    ])
     
     env = os.environ.copy()
     

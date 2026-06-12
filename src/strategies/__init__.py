@@ -6,6 +6,7 @@ from .uncertainty import (
     FDAL,
     DCUSStrategy,
     CAUSStrategy,
+    CLDCUSStrategy,
     MaPLeUncertaintyStrategy,
 )
 from .diversity import CoreSetStrategy, CCMSStrategy
@@ -25,5 +26,6 @@ __all__ = [
     "CCMSStrategy",
     "DCUSStrategy",
     "CAUSStrategy",
+    "CLDCUSStrategy",
     "MaPLeUncertaintyStrategy",
 ]

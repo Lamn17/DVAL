@@ -27,6 +27,9 @@ def parse_args():
     parser.add_argument('--name', type=str, default='exp', help='Experiment name')
     parser.add_argument('--model_path_file', type=str, help='File to save the trained model path')
     parser.add_argument('--strategy', type=str, help='Name of strategy (can be single or comma-separated chain)')
+    parser.add_argument('--quality_momentum', type=float, default=0.99)
+    parser.add_argument('--quality_initial_value', type=float, default=0.5)
+    parser.add_argument('--quality_xi', type=float, default=0.6)
 
     return parser.parse_args()
 
@@ -52,7 +55,30 @@ def main():
         device = [d.strip() for d in device.split(',')]
     
     try:
+        strategies = {
+            item.strip()
+            for item in (args.strategy or "").replace(",", "-").split("-")
+            if item.strip()
+        }
+        if "cldcus" in strategies:
+            from src.strategies.uncertainty.dcus_patching import (
+                configure_quality_tracking,
+                enable_cldcus_tracking,
+            )
+
+            configure_quality_tracking(
+                momentum=args.quality_momentum,
+                initial_value=args.quality_initial_value,
+                xi=args.quality_xi,
+            )
+
         model = create_model(args.model)
+        if "cldcus" in strategies:
+            enable_cldcus_tracking(model)
+            print(
+                "Enabled CLDCUS quality tracking "
+                f"(momentum={args.quality_momentum}, initial={args.quality_initial_value})"
+            )
         print("Starting training...")
         trained_model = model.train( # type: ignore
             data_yaml=args.dataset_yaml,
