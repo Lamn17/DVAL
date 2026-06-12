@@ -24,8 +24,8 @@ def configure_quality_tracking(momentum=0.99, initial_value=0.5, xi=0.6):
     QUALITY_XI = float(xi)
 
 
-def cldcus_detection_loss(self, preds, batch):
-    """Ultralytics detection loss with detached CLDCUS quality capture."""
+def ddus_detection_loss(self, preds, batch):
+    """Ultralytics detection loss with detached DDUS quality capture."""
     parsed = self.parse_output(preds)
     assigned, loss, loss_detach = self.get_assigned_targets_and_loss(parsed, batch)
     fg_mask, target_gt_idx, target_bboxes, anchor_points, stride_tensor = assigned
@@ -70,7 +70,7 @@ def cldcus_detection_loss(self, preds, batch):
                 )
             )
 
-    self.cldcus_batch_quality = (
+    self.ddus_batch_quality = (
         torch.cat(quality_rows, dim=0)
         if quality_rows
         else torch.zeros((0, 4), device=self.device)
@@ -117,7 +117,7 @@ def _on_train_start(trainer):
 
 def _on_train_batch_end(trainer):
     criterion = getattr(_trainer_model(trainer), "criterion", None)
-    quality = getattr(criterion, "cldcus_batch_quality", None)
+    quality = getattr(criterion, "ddus_batch_quality", None)
     if quality is None or quality.numel() == 0:
         return
 
@@ -152,21 +152,21 @@ def _on_train_epoch_end(trainer):
         np.save(Path(trainer.wdir) / f"{name}.npy", value.cpu().numpy())
 
 
-def enable_cldcus_tracking(model):
+def enable_ddus_tracking(model):
     """Enable quality capture without replacing the Ultralytics trainer loop."""
-    v8DetectionLoss.__call__ = cldcus_detection_loss  # type: ignore
+    v8DetectionLoss.__call__ = ddus_detection_loss  # type: ignore
     yolo_model = model.model
     yolo_model.add_callback("on_train_start", _on_train_start)
     yolo_model.add_callback("on_train_batch_end", _on_train_batch_end)
     yolo_model.add_callback("on_train_epoch_end", _on_train_epoch_end)
 
 
-def ensure_dcus_patching():
+def ensure_ddus_patching():
     """Compatibility entry point for callers that only need the loss patch."""
-    v8DetectionLoss.__call__ = cldcus_detection_loss  # type: ignore
+    v8DetectionLoss.__call__ = ddus_detection_loss  # type: ignore
 
 
 def patching(model):
     """Compatibility entry point for the previous patching API."""
-    enable_cldcus_tracking(model)
+    enable_ddus_tracking(model)
     return model

@@ -3,7 +3,7 @@ from .margin import MarginStrategy
 from .fdal import FDAL
 from .dcus import DCUSStrategy
 from .caus import CAUSStrategy
-from .cldcus import CLDCUSStrategy
+from .ddus import DDUSStrategy
 from .maple_uncertainty import MaPLeUncertaintyStrategy
 
 __all__ = [
@@ -12,6 +12,6 @@ __all__ = [
     "FDAL",
     "DCUSStrategy",
     "CAUSStrategy",
-    "CLDCUSStrategy",
+    "DDUSStrategy",
     "MaPLeUncertaintyStrategy",
 ]

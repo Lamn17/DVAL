@@ -60,10 +60,10 @@ def main():
             for item in (args.strategy or "").replace(",", "-").split("-")
             if item.strip()
         }
-        if "cldcus" in strategies:
-            from src.strategies.uncertainty.dcus_patching import (
+        if "ddus" in strategies:
+            from src.strategies.uncertainty.ddus_patching import (
                 configure_quality_tracking,
-                enable_cldcus_tracking,
+                enable_ddus_tracking,
             )
 
             configure_quality_tracking(
@@ -73,10 +73,10 @@ def main():
             )
 
         model = create_model(args.model)
-        if "cldcus" in strategies:
-            enable_cldcus_tracking(model)
+        if "ddus" in strategies:
+            enable_ddus_tracking(model)
             print(
-                "Enabled CLDCUS quality tracking "
+                "Enabled DDUS quality tracking "
                 f"(momentum={args.quality_momentum}, initial={args.quality_initial_value})"
             )
         print("Starting training...")

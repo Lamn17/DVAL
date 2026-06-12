@@ -3,8 +3,8 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 
-from src.strategies.uncertainty.cldcus import CLDCUSStrategy
-from src.strategies.uncertainty.dcus_patching import update_classwise_quality_ema
+from src.strategies.uncertainty.ddus import DDUSStrategy
+from src.strategies.uncertainty.ddus_patching import update_classwise_quality_ema
 
 
 class DummyModel:
@@ -13,14 +13,14 @@ class DummyModel:
 
 
 def make_strategy(**kwargs):
-    strategy = CLDCUSStrategy(DummyModel(), **kwargs)
+    strategy = DDUSStrategy(DummyModel(), **kwargs)
     strategy.classwise_cls_quality = np.array([0.2, 0.8], dtype=float)
     strategy.classwise_loc_quality = np.array([0.4, 0.6], dtype=float)
     return strategy
 
 
 def test_binary_entropy_is_symmetric_and_maximal_at_half():
-    uncertainty = CLDCUSStrategy._binary_entropy(np.array([0.1, 0.5, 0.9]))
+    uncertainty = DDUSStrategy._binary_entropy(np.array([0.1, 0.5, 0.9]))
 
     assert np.isclose(uncertainty[0], uncertainty[2])
     assert np.isclose(uncertainty[1], 1.0)
@@ -42,14 +42,14 @@ def test_top_m_mean_ignores_many_easy_detections():
         classes=np.array([0, 1, 0, 1], dtype=int),
     )
 
-    assert np.isclose(strategy._compute_cldcus_score(result), 1.0)
+    assert np.isclose(strategy._compute_ddus_score(result), 1.0)
 
 
 def test_empty_detection_image_scores_zero():
     strategy = make_strategy()
     result = SimpleNamespace(probs=np.array([]), classes=np.array([]))
 
-    assert strategy._compute_cldcus_score(result) == 0.0
+    assert strategy._compute_ddus_score(result) == 0.0
 
 
 def test_masked_ema_preserves_unobserved_classes():

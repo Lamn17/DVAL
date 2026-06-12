@@ -10,8 +10,8 @@ from loguru import logger
 from src.strategies.base import BaseStrategy
 
 
-class CLDCUSStrategy(BaseStrategy):
-    """Classification and Localization Difficulty-aware Uncertainty Sampling."""
+class DDUSStrategy(BaseStrategy):
+    """Detection Difficulty-aware Uncertainty Sampling."""
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class CLDCUSStrategy(BaseStrategy):
         candidate_indices = unlabeled_indices[:num_inf] if num_inf > 0 else unlabeled_indices
         candidate_paths = self._get_image_paths_for_indices(candidate_indices, image_paths)
 
-        print(f"Computing CLDCUS uncertainty scores for {len(candidate_paths)} images...")
+        print(f"Computing DDUS uncertainty scores for {len(candidate_paths)} images...")
         start_time = time.time()
         results = self.model.inference(
             candidate_paths,
@@ -79,7 +79,7 @@ class CLDCUSStrategy(BaseStrategy):
         )
 
         processed_indices = candidate_indices[: len(results)]
-        scores = np.array([self._compute_cldcus_score(result) for result in results], dtype=float)
+        scores = np.array([self._compute_ddus_score(result) for result in results], dtype=float)
         n_selected = min(n_samples, len(processed_indices))
         top_local = np.argsort(scores, kind="stable")[-n_selected:]
         selected_indices = processed_indices[top_local]
@@ -88,9 +88,9 @@ class CLDCUSStrategy(BaseStrategy):
         self._write_time_log(elapsed, len(processed_indices))
         if scores.size:
             selected_scores = np.sort(scores[top_local])
-            print(f"Top 5 CLDCUS uncertainty scores: {selected_scores[-5:]}")
+            print(f"Top 5 DDUS uncertainty scores: {selected_scores[-5:]}")
             print(
-                f"CLDCUS score statistics - Mean: {scores.mean():.4f}, "
+                f"DDUS score statistics - Mean: {scores.mean():.4f}, "
                 f"Std: {scores.std():.4f}, Min: {scores.min():.4f}, "
                 f"Max: {scores.max():.4f}"
             )
@@ -117,20 +117,20 @@ class CLDCUSStrategy(BaseStrategy):
                 loc_quality = np.asarray(np.load(loc_path), dtype=float).reshape(-1)
                 if cls_quality.shape != loc_quality.shape:
                     raise ValueError(
-                        "CLDCUS classification and localization quality vectors have different shapes"
+                        "DDUS classification and localization quality vectors have different shapes"
                     )
-                logger.info(f"Loaded CLDCUS quality vectors from {quality_dir}")
+                logger.info(f"Loaded DDUS quality vectors from {quality_dir}")
                 return np.clip(cls_quality, 0.0, 1.0), np.clip(loc_quality, 0.0, 1.0)
 
         raise FileNotFoundError(
-            "CLDCUS quality vectors were not produced by detector training. "
-            "Run training with a strategy containing 'cldcus'. Checked: "
+            "DDUS quality vectors were not produced by detector training. "
+            "Run training with a strategy containing 'ddus'. Checked: "
             + ", ".join(checked)
         )
 
     def _get_classwise_weights(self) -> Dict[int, float]:
         if self.classwise_cls_quality is None or self.classwise_loc_quality is None:
-            raise ValueError("CLDCUS quality vectors have not been loaded")
+            raise ValueError("DDUS quality vectors have not been loaded")
 
         difficulty = (
             self.lambda_cls * (1.0 - self.classwise_cls_quality)
@@ -140,7 +140,7 @@ class CLDCUSStrategy(BaseStrategy):
         weights = raw_weights / max(float(raw_weights.mean()), 1e-12)
         return {class_id: float(weight) for class_id, weight in enumerate(weights)}
 
-    def _compute_cldcus_score(self, result) -> float:
+    def _compute_ddus_score(self, result) -> float:
         if result.probs is None or len(result.probs) == 0:
             return 0.0
 
@@ -153,7 +153,7 @@ class CLDCUSStrategy(BaseStrategy):
         )
         if len(classes) != len(uncertainties):
             raise ValueError(
-                f"CLDCUS received {len(classes)} classes for {len(uncertainties)} detections"
+                f"DDUS received {len(classes)} classes for {len(uncertainties)} detections"
             )
 
         class_weights = self._get_classwise_weights()
@@ -186,4 +186,4 @@ class CLDCUSStrategy(BaseStrategy):
             )
 
     def get_strategy_name(self) -> str:
-        return "cldcus"
+        return "ddus"
