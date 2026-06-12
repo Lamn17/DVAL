@@ -28,6 +28,7 @@ from src.strategies import (
     FDAL,
     CCMSStrategy,
     DCUSStrategy,
+    CAUSStrategy,
     MaPLeUncertaintyStrategy,
     CDALStrategy,
     DivProtoStrategy,
@@ -112,6 +113,8 @@ def create_strategy(strategy_name: str, model: BaseModel, **kwargs):
         return CCMSStrategy(model, **kwargs)
     elif strategy_name == 'dcus':
         return DCUSStrategy(model, **kwargs)
+    elif strategy_name == 'caus':
+        return CAUSStrategy(model, **kwargs)
     elif strategy_name == 'maple':
         return MaPLeUncertaintyStrategy(model, **kwargs)
     elif strategy_name == 'cdal':
