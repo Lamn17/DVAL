@@ -127,7 +127,6 @@ Important fields:
 |   +-- data/
 |   +-- models/
 |   +-- strategies/
-+-- tests/
 ```
 
 ## Notes Before Pushing to GitHub
