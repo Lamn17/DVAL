@@ -1,27 +1,25 @@
-dataset_yaml: "VTSDB100/data.yaml"
-epochs: 20
-batch_size: 48
+dataset_yaml: "GTSDB/data_local.yaml"
+epochs: 100
+batch_size: 16
 val_batch_size: 8
-workers: 8
-imgsz: 640
+imgsz: 1024
 device: ['0']
-inference_device: 0
-inference_batch_size: 32
+workers: 8
 train_ddp: False
 master_addr: "localhost"
 master_port: 12355
 backend: "nccl"
 patience: 30
-experiments_root: "full_experiments/vtsdb100_dval"
-proctitle_midstr: "vtsdb100_dval"
+experiments_root: "full_experiments/gtsdb_dval"
+proctitle_midstr: "gtsdb_dval"
 proctitle_endstr_of: "seed"
 seed: 1
 strategy: ["ddus", "maple"]
 expand_ratios: [2.0]
 model_name: "yolo11n.pt"
-initial_labeled_count: 15499 # 20% of 77499 train images, rounded down
+initial_labeled_count: 144 # 20% of 720 train images
 max_rounds: 6
-samples_per_round: 3875 # 5% of 77499 train images, rounded down
+samples_per_round: 36 # 5% of 720 train images
 num_inference: -1
 
 strategy_args:
@@ -44,7 +42,7 @@ strategy_args:
     inverse_confidence_weight: 0.0
     yolo_confidence_weight: 0.0
     padding: 0.15
-    batch_size: 32
+    batch_size: 8
     maple_device: "cuda:0"
 
 maple_training:
@@ -54,10 +52,9 @@ maple_training:
   n_ctx: 2
   ctx_init: ""
   prompt_depth: 9
-  epochs: 3
-  batch_size: 32
+  epochs: 6
+  batch_size: 8
   num_workers: 4
-  val_interval: 0
   learning_rate: 0.0025
   weight_decay: 0.0005
   momentum: 0.9
