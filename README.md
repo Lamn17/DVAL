@@ -44,7 +44,7 @@ configs/
 
 Expected dataset YAML files:
 
-- `GTSDB/data_local.yaml`
+- `GTSDB/data.yaml`
 - `VTSDB100/data.yaml`
 
 Each dataset YAML should follow the YOLO format with train/val/test image paths and class names.
