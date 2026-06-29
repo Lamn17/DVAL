@@ -1,4 +1,4 @@
-dataset_yaml: "GTSDB/data_local.yaml"
+dataset_yaml: "GTSDB/data.yaml"
 epochs: 26
 batch_size: 16 
 val_batch_size: 8
