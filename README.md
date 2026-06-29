@@ -1,4 +1,4 @@
-# DVAL Active Learning for Traffic-Sign Detection
+# DVAL: Detector and Vision-language active learning for traffic sign detection
 
 This repository contains an active-learning pipeline for object detection with YOLO and MaPLe-based visual re-ranking. The current public setup is focused on **DVAL** experiments for two traffic-sign datasets:
 
@@ -31,10 +31,6 @@ cp .env.example .env.training
 ```
 
 At minimum, make sure `PROCTITLE_STARTSTR` is set before running experiments:
-
-```bash
-export PROCTITLE_STARTSTR=fdal
-```
 
 ## Datasets
 
