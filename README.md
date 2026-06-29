@@ -84,8 +84,6 @@ VTSDB100:
 - `configs/vtsdb100/config_random.yaml`
 - `configs/vtsdb100/config_entropy.yaml`
 - `configs/vtsdb100/config_coreset.yaml`
-- `configs/vtsdb100/config_ppal.yaml`
-- `configs/vtsdb100/config_ppal_maple.yaml`
 
 GTSDB:
 
@@ -93,11 +91,6 @@ GTSDB:
 - `configs/gtsdb/config_random.yaml`
 - `configs/gtsdb/config_entropy.yaml`
 - `configs/gtsdb/config_coreset.yaml`
-- `configs/gtsdb/config_badge.yaml`
-- `configs/gtsdb/config_ppal.yaml`
-- `configs/gtsdb/config_ppal_maple.yaml`
-- `configs/gtsdb/config_caus_maple.yaml`
-- `configs/gtsdb/config_ddus_maple.yaml`
 
 ## DVAL Configuration
 
