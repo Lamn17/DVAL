@@ -1,5 +1,5 @@
 dataset_yaml: "VTSDB100/data.yaml"
-epochs: 20
+epochs: 26
 batch_size: 48
 val_batch_size: 8
 workers: 8

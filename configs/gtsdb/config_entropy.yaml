@@ -1,5 +1,5 @@
 dataset_yaml: "GTSDB/data_local.yaml"
-epochs: 100
+epochs: 26
 batch_size: 16 
 val_batch_size: 8
 imgsz: 1024
